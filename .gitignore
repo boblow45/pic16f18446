@@ -1,0 +1,33 @@
+# VS-Code #
+.vscode/
+
+build/
+debug/
+dist/
+nbproject
+
+# Ignore windows temp files
+~*.xlsx
+~*.pptx
+*.pptx
+
+# Python #
+venv/
+
+# Python code #
+# Byte-compiled / optimized / DLL files
+*.idea/
+__pycache__/
+*.py[cod]
+*.cache/
+*.log
+*egg-info/
+*dist/
+*_build/ 
+*.xml
+# pytest files 
+*.pytest_cache
+
+# Executables
+*.hex
+*.bin
