@@ -16,19 +16,31 @@
 
 #define DUTY 50
 #define _XTAL_FREQ 4000000
-#define TMR2Prescale 1          // TMR2 Prescale value
-uint16_t PWMFreq = 440;         // PWM Frequency
 
-void PWM_Init(void)
+void set_period(uint16_t freq){
+    uint16_t pwm_period = _XTAL_FREQ/(freq*4);
+    uint8_t prescaler = 0;
+    while (pwm_period > 255){
+        pwm_period /=2;
+        prescaler++;
+    }
+    
+    T2PRbits.PR = (uint8_t)pwm_period;
+    T2CONbits.CKPS = prescaler;
+    PWM6DC = (DUTY * 4 * (pwm_period + 1) / 100)<<6; 
+    
+    return;
+}
+
+void config_pwm(uint16_t freq)
 {
     TRISBbits.TRISB6 = 1;                   // Set RB6 as input 
     RB6PPSbits.RB6PPS = 0b001101;           // set PWM 6 to output on RB6 
     PWM6CON = 0;                            // Clear PWM7CON register
-    T2PRbits.PR = (_XTAL_FREQ/(PWMFreq*4*TMR2Prescale))-1;  // PWM period
-    PWM6DC = (DUTY * 4 * (T2PRbits.PR + 1) / 100)<<6 ;       // Set duty to half of period
+    
+    set_period(freq);
     PIR4bits.TMR2IF = 0;            // clear int flag 
     T2CLKCONbits.CS = 0b0001;       // Fosc/4
-    T2CONbits.CKPS = 0;             // Prescaler of 0 
     T2CONbits.T2ON = 1;             // Turn on timer 
         
     TRISBbits.TRISB6 = 0;           // set RB6 as output 
@@ -39,8 +51,16 @@ void PWM_Init(void)
 
 void main(void) {
 
-    PWM_Init(); 
+    // uint16_t freq[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 534};
+    uint16_t freq[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 534};
+    // uint16_t freq[] = {440, 2000, 4000};
+    uint8_t count = 0;
     while(1){
+        config_pwm(freq[count] * 7);
+        __delay_ms(1000);
+        
+        count++;
+        count %= sizeof(freq)/sizeof(freq[0]);
     }
     
 }
