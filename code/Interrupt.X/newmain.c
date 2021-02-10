@@ -19,8 +19,8 @@
 
 void __interrupt() isr()
 {   
-    if(PIR0bits.INTF){
-        PIR0bits.INTF = 0;
+    if(PIR0bits.TMR0IF){
+        PIR0bits.TMR0IF = 0;
         if(LATAbits.LATA1 == 1){
             LATAbits.LATA1 = 0;
         }else{
