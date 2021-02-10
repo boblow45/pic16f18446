@@ -44,11 +44,13 @@
 #define DUTY 50
 #define _XTAL_FREQ 4000000
 
-uint32_t beat_ms = 100;
+uint32_t beat_ms = 500;
+uint8_t off_note_ms = 1;
 volatile uint16_t TMR_val =0;
 volatile uint8_t count = 0;
+volatile uint8_t playing = 0;
 
-uint16_t freq[] = {A4, 0, A4,0, A4,0, F4,0, C5,0, A4,0, F4,0, C5,0, A4,0};
+uint16_t freq[] = {A4, A4, A4, F4, C5, A4, F4, C5, A4};
 
 uint16_t cal_pwm_reload_reg(uint32_t delay_ms); 
 void set_period(uint16_t freq);
@@ -57,15 +59,26 @@ void timer_setup(void);
 
 void __interrupt() isr(){   
     if(PIR0bits.TMR0IF){
-
-        config_pwm(freq[count]);
-        count++;
-        count %= sizeof(freq)/sizeof(freq[0]);
         
-        TMR_val = cal_pwm_reload_reg(beat_ms); 
-        TMR0H = (TMR_val >> 8) & 0xFF;
-        TMR0L = TMR_val & 0xFF;   
-        PIR0bits.TMR0IF = 0;
+        if (!playing){
+            playing = 1;
+            config_pwm(freq[count]);
+            count++;
+            count %= sizeof(freq)/sizeof(freq[0]);
+
+            TMR_val = cal_pwm_reload_reg(beat_ms - off_note_ms); 
+            TMR0H = (TMR_val >> 8) & 0xFF;
+            TMR0L = TMR_val & 0xFF;   
+            PIR0bits.TMR0IF = 0;
+        }
+        else{
+            playing = 0;
+            TRISBbits.TRISB6 = 1;
+            TMR_val = cal_pwm_reload_reg(off_note_ms); 
+            TMR0H = (TMR_val >> 8) & 0xFF;
+            TMR0L = TMR_val & 0xFF;   
+            PIR0bits.TMR0IF = 0;
+        }
     }
 }
 
