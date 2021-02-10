@@ -14,6 +14,33 @@
 #pragma config LVP = ON         // Low-Voltage (Single-Supply) In-Circuit 
 #pragma config CP = OFF         // Flash Program Memory Code Protection bit 
 
+#define C0 16
+#define Cs0 17
+#define D0 18
+#define Ds0 19
+#define E0 21
+#define F0 22
+#define Fs0 23
+#define G0 25
+#define Gs0 26
+#define A0 28
+#define As0 29
+#define B0 31
+
+#define C4 262
+#define Cs4 277
+#define D4 294
+#define Ds4 311
+#define E4 230
+#define F4 349
+#define Fs4 370
+#define G4 392
+#define Gs4 415
+#define A4 440
+#define As4 466
+#define B4 494
+#define C5 523
+
 #define DUTY 50
 #define _XTAL_FREQ 4000000
 
@@ -51,13 +78,19 @@ void config_pwm(uint16_t freq)
 
 void main(void) {
 
-    // uint16_t freq[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 534};
-    uint16_t freq[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 534};
-    // uint16_t freq[] = {440, 2000, 4000};
+//    uint16_t freq[] = {261, 277, 293, 311, 329, 349, 369, 392, 415, 440, 466, 493, 534};
+    uint16_t freq[] = {A4, 0, A4,0, A4,0, F4,0, C5,0, A4,0, F4,0, C5,0, A4,0};
     uint8_t count = 0;
     while(1){
-        config_pwm(freq[count] * 7);
-        __delay_ms(1000);
+        if (freq[count]){
+            config_pwm(freq[count] * 7);
+            __delay_ms(500);
+        }
+        else{
+            TRISBbits.TRISB6 = 1;
+            __delay_ms(10);
+        }
+        
         
         count++;
         count %= sizeof(freq)/sizeof(freq[0]);
