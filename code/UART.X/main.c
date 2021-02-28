@@ -46,7 +46,7 @@ void main(void) {
     char output[] = "Hello World!\r\n";
     usart_init();
     while(1){
-        usart_write(output, sizeof(output)/sizeof(output[0]));
+        usart_write(output, sizeof(output)/sizeof(output[0]) - 1);
         
         // __delay_ms(100);
     }
