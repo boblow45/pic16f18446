@@ -25,7 +25,7 @@ void __interrupt() INTERRUPT_InterruptManager (void)
         } 
         else if(PIE3bits.RC1IE == 1 && PIR3bits.RC1IF == 1)
         {
-            // Need to add rx code here 
+            usart_rx_irq();
         } 
         else
         {
@@ -43,11 +43,11 @@ void __interrupt() INTERRUPT_InterruptManager (void)
 
 void main(void) {
     
-    char output[] = "Hello User!\r\n";
+    char output[] = "Hello World!\r\n";
     usart_init();
     while(1){
         usart_write(output, sizeof(output)/sizeof(output[0]) - 1);
         
-        // __delay_ms(100);
+        // __delay_ms(1000);
     }
 }

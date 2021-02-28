@@ -6,6 +6,7 @@
 void usart_init(void);
 void usart_write(char *data, uint8_t len);
 void usart_tx_irq(void);
+void usart_rx_irq(void);
 
 #endif	/* USART_H*/
 

@@ -6,12 +6,14 @@
 volatile uint8_t uart_bytes = 0;
 volatile char * uart_data;
 
-#define TX_BUFF_SIZE (16)
-#define RX_BUFF_SIZE (8)
+#define TX_BUFF_SIZE (12)
+#define RX_BUFF_SIZE (64)
 
 char tx_buff[TX_BUFF_SIZE];
+char rx_buff[RX_BUFF_SIZE];
 
 struct cbuff_s{
+    char * buff;
     uint8_t head;
     uint8_t tail;
     uint8_t size;
@@ -19,8 +21,10 @@ struct cbuff_s{
 };
 
 struct cbuff_s cbuff_tx;
+struct cbuff_s cbuff_rx;
 
-static void buff_init(struct cbuff_s * cbuf, uint8_t size){
+static void buff_init(struct cbuff_s * cbuf, char * buff, uint8_t size){
+    cbuf->buff = buff;
     cbuf->head = 0;
     cbuf->tail = 0;
     cbuf->size = size;
@@ -32,7 +36,7 @@ static bool buf_empty(struct cbuff_s * cbuf) {
 }
 
 static void buf_put(struct cbuff_s * cbuf, char data){
-    tx_buff[cbuf->head] = data;
+    cbuf->buff[cbuf->head] = data;
     cbuf->head = (cbuf->head + 1) % cbuf->size;
 
     if(cbuf->full){
@@ -43,20 +47,10 @@ static void buf_put(struct cbuff_s * cbuf, char data){
 
 static char buf_get(struct cbuff_s * cbuf){
     char data;
-    data = tx_buff[cbuf->head];
+    data = cbuf->buff[cbuf->head];
     cbuf->full = false;
     cbuf->tail = (cbuf->tail + 1) % cbuf->size;
     return data;
-}
-
-
-void usart_write(char *data, uint8_t len){
-    
-    for(uint8_t i=0; i<len; i++){
-        while(tx_full){}
-        buf_put(&cbuff_tx, data[i]);
-        PIE3bits.TX1IE = 1;
-    }
 }
 
 void usart_init(void){
@@ -64,7 +58,8 @@ void usart_init(void){
     PIE3bits.RC1IE = 0;
     PIE3bits.TX1IE = 0;
     
-    buff_init(&cbuff_tx, TX_BUFF_SIZE);
+    buff_init(&cbuff_tx, tx_buff, TX_BUFF_SIZE);
+    buff_init(&cbuff_rx, rx_buff, RX_BUFF_SIZE);
     
     TRISBbits.TRISB4 = 1;       // Set RB4 as output
     RX1PPSbits.PORT = 0b01;     // Port B
@@ -89,7 +84,16 @@ void usart_init(void){
   
     INTCONbits.GIE = 1;         // Enable the interrupt system
     INTCONbits.PEIE = 1;        // Enable interrupts from peripherals
-    //PIE3bits.RC1IE = 1;
+    PIE3bits.RC1IE = 1;
+}
+
+void usart_write(char *data, uint8_t len){
+    
+    for(uint8_t i=0; i<len; i++){
+        while(cbuff_tx.full){}
+        buf_put(&cbuff_tx, data[i]);
+        PIE3bits.TX1IE = 1;
+    }
 }
 
 void usart_tx_irq(void){
@@ -97,4 +101,8 @@ void usart_tx_irq(void){
     if(buf_empty(&cbuff_tx)){
         PIE3bits.TX1IE = 0;
     }
+}
+
+void usart_rx_irq(void){
+    buf_put(&cbuff_rx, RC1REG);
 }
