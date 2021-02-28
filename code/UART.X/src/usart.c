@@ -6,6 +6,11 @@
 #define TX_BUFF_SIZE (12)
 #define RX_BUFF_SIZE (64)
 
+#define STX     (0x02)  // Start of packet flag
+#define ETX     (0x03)  // End of packet flag
+#define ESCAPE  (0x1B)  // Escape flag, so 0x02 and 0x03 can be used in the protocol
+
+
 char tx_buff[TX_BUFF_SIZE];
 char rx_buff[RX_BUFF_SIZE];
 
@@ -109,7 +114,61 @@ void usart_tx_irq(void){
     }
 }
 
+enum rx_state{await_str, received_str, escaping};
+
+uint8_t state = await_str;
+
+void change_state(char data){
+    switch(data){
+        case STX:
+            state = received_str;
+            break;
+        case ESCAPE:
+            state = escaping;
+            break;
+        case ETX:
+            state = await_str;
+            break;
+        default:
+            break;
+    }
+
+}
+
 void usart_rx_irq(void){
     char data = RC1REG;
-    buf_put(&cbuff_rx, data);
+    
+    switch(state){
+        case await_str:
+            change_state(data);
+            break;
+        case received_str:
+            change_state(data);
+            if(state == received_str)
+                buf_put(&cbuff_rx, data);
+            break;
+        case escaping:
+            buf_put(&cbuff_rx, data);
+            change_state(STX);
+            break;      
+        default:
+            break;
+            // Nothing. May need to send a none valid command 
+    } 
+}
+
+
+enum usart_cmds{LED=0x13};
+void usart_process_cmd(void){
+    if(!buf_empty(&cbuff_rx)){
+        char data = buf_get(&cbuff_rx);
+        switch(data){
+            case LED:
+                LATAbits.LATA2 = (~LATAbits.LATA2) & 1;
+                break;
+            default:
+                break;
+        }
+    }
+    
 }

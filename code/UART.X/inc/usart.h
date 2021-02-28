@@ -9,5 +9,7 @@ char usart_read(void);
 void usart_tx_irq(void);
 void usart_rx_irq(void);
 
+void usart_process_cmd(void);
+
 #endif	/* USART_H*/
 

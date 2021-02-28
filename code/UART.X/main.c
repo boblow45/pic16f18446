@@ -48,14 +48,12 @@ void __interrupt() INTERRUPT_InterruptManager (void)
 
 void main(void) {
     
-    char read_val;
-    char output[] = "Hello World!\r\n";
+    TRISAbits.TRISA2 = 0; // set A2 as output
+    LATAbits.LATA2 = 0;
     usart_init();
-    usart_write(output, sizeof(output)/sizeof(output[0]) - 1);
     while(1){
         
-        read_val = usart_read();
-        usart_write(&read_val, 1);
+        usart_process_cmd();
         //__delay_ms(1000);
     }
 }
