@@ -10,35 +10,42 @@ volatile char * uart_data;
 #define RX_BUFF_SIZE (8)
 
 char tx_buff[TX_BUFF_SIZE];
-volatile uint8_t tx_head;
-volatile uint8_t tx_tail;
-volatile bool tx_full;
 
-static void tx_buff_init(void){
-    tx_head = 0;
-    tx_tail = 0;
-    tx_full = false;
+struct cbuff_s{
+    uint8_t head;
+    uint8_t tail;
+    uint8_t size;
+    bool full;
+};
+
+struct cbuff_s cbuff_tx;
+
+static void buff_init(struct cbuff_s * cbuf, uint8_t size){
+    cbuf->head = 0;
+    cbuf->tail = 0;
+    cbuf->size = size;
+    cbuf->full = false;
 }
 
-static bool tx_buf_empty() {
-	return (!tx_full && (tx_head == tx_tail));
+static bool buf_empty(struct cbuff_s * cbuf) {
+	return (!cbuf->full && (cbuf->head == cbuf->tail));
 }
 
-static void tx_buf_put(char data){
-    tx_buff[tx_head] = data;
-    tx_head = (tx_head + 1) % TX_BUFF_SIZE;
+static void buf_put(struct cbuff_s * cbuf, char data){
+    tx_buff[cbuf->head] = data;
+    cbuf->head = (cbuf->head + 1) % cbuf->size;
 
-    if(tx_full){
-        tx_tail = (tx_tail + 1) % TX_BUFF_SIZE;
+    if(cbuf->full){
+        cbuf->tail = (cbuf->tail + 1) % cbuf->size;
     }
-    tx_full = (tx_head == tx_tail)? true: false;
+    cbuf->full = (cbuf->head == cbuf->tail)? true: false;
 }
 
-static char tx_buf_get(void){
+static char buf_get(struct cbuff_s * cbuf){
     char data;
-    data = tx_buff[tx_head];
-    tx_full = false;
-    tx_tail = (tx_tail + 1) % TX_BUFF_SIZE;
+    data = tx_buff[cbuf->head];
+    cbuf->full = false;
+    cbuf->tail = (cbuf->tail + 1) % cbuf->size;
     return data;
 }
 
@@ -47,7 +54,7 @@ void usart_write(char *data, uint8_t len){
     
     for(uint8_t i=0; i<len; i++){
         while(tx_full){}
-        tx_buf_put(data[i]);
+        buf_put(&cbuff_tx, data[i]);
         PIE3bits.TX1IE = 1;
     }
 }
@@ -57,7 +64,7 @@ void usart_init(void){
     PIE3bits.RC1IE = 0;
     PIE3bits.TX1IE = 0;
     
-    tx_buff_init();
+    buff_init(&cbuff_tx, TX_BUFF_SIZE);
     
     TRISBbits.TRISB4 = 1;       // Set RB4 as output
     RX1PPSbits.PORT = 0b01;     // Port B
@@ -86,8 +93,8 @@ void usart_init(void){
 }
 
 void usart_tx_irq(void){
-    TX1REG = tx_buf_get();
-    if(tx_buf_empty()){
+    TX1REG = buf_get(&cbuff_tx);
+    if(buf_empty(&cbuff_tx)){
         PIE3bits.TX1IE = 0;
     }
 }
