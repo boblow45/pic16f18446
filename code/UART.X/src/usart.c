@@ -3,9 +3,6 @@
 
 #include "./../inc/usart.h"
 
-volatile uint8_t uart_bytes = 0;
-volatile char * uart_data;
-
 #define TX_BUFF_SIZE (12)
 #define RX_BUFF_SIZE (64)
 
@@ -32,7 +29,7 @@ static void buff_init(struct cbuff_s * cbuf, char * buff, uint8_t size){
 }
 
 static bool buf_empty(struct cbuff_s * cbuf) {
-	return (!cbuf->full && (cbuf->head == cbuf->tail));
+	return (!cbuf->full && (cbuf->head == cbuf->tail))? true: false;
 }
 
 static void buf_put(struct cbuff_s * cbuf, char data){
@@ -47,7 +44,7 @@ static void buf_put(struct cbuff_s * cbuf, char data){
 
 static char buf_get(struct cbuff_s * cbuf){
     char data;
-    data = cbuf->buff[cbuf->head];
+    data = cbuf->buff[cbuf->tail];
     cbuf->full = false;
     cbuf->tail = (cbuf->tail + 1) % cbuf->size;
     return data;
@@ -60,12 +57,14 @@ void usart_init(void){
     
     buff_init(&cbuff_tx, tx_buff, TX_BUFF_SIZE);
     buff_init(&cbuff_rx, rx_buff, RX_BUFF_SIZE);
+
+    TRISB = (1 << 5);   // Set RB5 as input
     
-    TRISBbits.TRISB4 = 1;       // Set RB4 as output
     RX1PPSbits.PORT = 0b01;     // Port B
     RX1PPSbits.PIN  = 5;        // Pin 5
-            
-    RB4PPS = 0b001111;          // Set Port B4 to TX1 
+    ANSELBbits.ANSB5 = 0;
+    
+    RB4PPS = 0b001111;          // Set Port B4 to TX1     
 
     // ABDOVF no_overflow; SCKP Non-Inverted; BRG16 16bit_generator; WUE disabled; ABDEN disabled; 
     BAUD1CON = 0x08;
@@ -92,8 +91,15 @@ void usart_write(char *data, uint8_t len){
     for(uint8_t i=0; i<len; i++){
         while(cbuff_tx.full){}
         buf_put(&cbuff_tx, data[i]);
-        PIE3bits.TX1IE = 1;
+        
+        if (!PIE3bits.TX1IE){
+            PIE3bits.TX1IE = 1;
+        }
     }
+}
+char usart_read(void){
+    while(buf_empty(&cbuff_rx)){}
+    return buf_get(&cbuff_rx);
 }
 
 void usart_tx_irq(void){
@@ -104,5 +110,6 @@ void usart_tx_irq(void){
 }
 
 void usart_rx_irq(void){
-    buf_put(&cbuff_rx, RC1REG);
+    char data = RC1REG;
+    buf_put(&cbuff_rx, data);
 }

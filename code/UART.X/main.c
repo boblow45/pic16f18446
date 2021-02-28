@@ -13,6 +13,11 @@
 
 #define _XTAL_FREQ 4000000
 
+#pragma config WDTE = OFF       // Watchdog Timer Enable bit (WDT disabled)
+#pragma config BOREN = OFF      // Brown-out Reset Enable bit (BOR disabled)
+#pragma config LVP = ON         // Low-Voltage (Single-Supply) In-Circuit 
+#pragma config CP = OFF         // Flash Program Memory Code Protection bit 
+
 
 void __interrupt() INTERRUPT_InterruptManager (void)
 {
@@ -43,11 +48,14 @@ void __interrupt() INTERRUPT_InterruptManager (void)
 
 void main(void) {
     
+    char read_val;
     char output[] = "Hello World!\r\n";
     usart_init();
+    usart_write(output, sizeof(output)/sizeof(output[0]) - 1);
     while(1){
-        usart_write(output, sizeof(output)/sizeof(output[0]) - 1);
         
-        // __delay_ms(1000);
+        read_val = usart_read();
+        usart_write(&read_val, 1);
+        //__delay_ms(1000);
     }
 }
