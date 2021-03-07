@@ -2,9 +2,12 @@ import serial
 import time 
 from enum import Enum
 import pandas as pd
+import os 
 
 ser = serial.Serial('/dev/ttyUSB0', 19200, timeout=1)  # open serial port
-notes_df = pd.read_csv("Imperial_March.tsv", sep="\t")
+
+file_loc = os.path.join(os.path.dirname(__file__),"Imperial_March.tsv")
+notes_df = pd.read_csv(file_loc, sep="\t")
 notes_df["Notes"] = notes_df["Notes"].fillna("Rest")
 
 notes_map = {

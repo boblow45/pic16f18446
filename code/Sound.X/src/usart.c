@@ -3,6 +3,7 @@
 
 #include "./../inc/usart.h"
 #include "./../inc/speaker.h"
+#include "./../inc/cbuff.h"
 
 #define TX_BUFF_SIZE (16)
 #define RX_BUFF_SIZE (256)
@@ -11,67 +12,22 @@
 #define ETX     (0x03)  // End of packet flag
 #define ESCAPE  (0x1B)  // Escape flag, so 0x02 and 0x03 can be used in the protocol
 
+enum rx_state{await_str, received_str, escaping, processing};
+
+enum usart_cmds{LED=0x13, 
+                SOUND_OFF=0x14,
+                SOUND_ON = 0x15,
+                UPDATE_NOTES = 0x16,
+                UPDATE_DURATION = 0x17,
+                UPDATE_BEAT = 0x18, 
+};
+
 
 char tx_buff[TX_BUFF_SIZE];
 char rx_buff[RX_BUFF_SIZE];
 
-struct cbuff_s{
-    char * buff;
-    uint16_t head;
-    uint16_t tail;
-    uint16_t size;
-    bool full;
-};
-
 struct cbuff_s cbuff_tx;
 struct cbuff_s cbuff_rx;
-
-static void buff_init(struct cbuff_s * cbuf, char * buff, uint16_t size){
-    cbuf->buff = buff;
-    cbuf->head = 0;
-    cbuf->tail = 0;
-    cbuf->size = size;
-    cbuf->full = false;
-}
-
-static bool buf_empty(struct cbuff_s * cbuf) {
-	return (!cbuf->full && (cbuf->head == cbuf->tail))? true: false;
-}
-
-static void buf_put(struct cbuff_s * cbuf, char data){
-    cbuf->buff[cbuf->head] = data;
-    cbuf->head = (cbuf->head + 1) % cbuf->size;
-
-    if(cbuf->full){
-        cbuf->tail = (cbuf->tail + 1) % cbuf->size;
-    }
-    cbuf->full = (cbuf->head == cbuf->tail)? true: false;
-}
-
-static char buf_get(struct cbuff_s * cbuf){
-    char data;
-    data = cbuf->buff[cbuf->tail];
-    cbuf->full = false;
-    cbuf->tail = (cbuf->tail + 1) % cbuf->size;
-    return data;
-}
-
-static char buf_view(struct cbuff_s * cbuf, uint16_t offset){
-    uint16_t i = cbuf->tail + offset;
-    return cbuf->buff[i % cbuf->size];
-}
-
-static void buf_clear(struct cbuff_s * cbuf){
-    cbuf->head = 0;
-    cbuf->tail = 0;
-    cbuf->full = false;
-}
-
-static void buf_mv_tail_fwd(struct cbuff_s * cbuf, uint16_t offset){
-    uint16_t i = cbuf->tail + offset;
-    cbuf->tail = i % cbuf->size; 
-    cbuf->full = false;
-}
 
 void usart_init(void){
     // disable interrupts before changing states
@@ -132,7 +88,7 @@ void usart_tx_irq(void){
     }
 }
 
-enum rx_state{await_str, received_str, escaping, processing};
+
 
 uint8_t state = await_str;
 
@@ -151,7 +107,6 @@ void change_state(char data){
         default:
             break;
     }
-
 }
 
 void usart_rx_irq(void){
@@ -180,14 +135,6 @@ void usart_rx_irq(void){
 static bool valid_cmd(void){
     return true;
 }
-
-enum usart_cmds{LED=0x13, 
-                SOUND_OFF=0x14,
-                SOUND_ON = 0x15,
-                UPDATE_NOTES = 0x16,
-                UPDATE_DURATION = 0x17,
-                UPDATE_BEAT = 0x18, 
-};
 
 uint32_t temp_32;
 uint16_t temp_16;
