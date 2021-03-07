@@ -149,23 +149,16 @@ ser.write(p_gen.toggle_led())
 
 ser.write(p_gen.sound_off())
 
-exit()
-# ser.write(p_gen.sound_off())
 ser.write(p_gen.update_beat(60))
 
-# notes = [0xde, 0xad, 0xde, 0xad, 0xab, 0xcd]
 ser.write(p_gen.update_notes(notes))
 
 ser.write(p_gen.update_duration(durations))
 
 print(durations)
-# exit()
+
 time.sleep(0.5)
 ser.write(p_gen.sound_on())
 
-
-# ser.write(p_gen.update_beat(120))
-# time.sleep(5)
-# ser.write(p_gen.sound_off())
 ser.close()             # close port
 

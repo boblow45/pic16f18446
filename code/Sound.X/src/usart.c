@@ -2,9 +2,10 @@
 #include <stdbool.h>
 
 #include "./../inc/usart.h"
+#include "./../inc/speaker.h"
 
-#define TX_BUFF_SIZE (12)
-#define RX_BUFF_SIZE (64)
+#define TX_BUFF_SIZE (16)
+#define RX_BUFF_SIZE (256)
 
 #define STX     (0x02)  // Start of packet flag
 #define ETX     (0x03)  // End of packet flag
@@ -16,16 +17,16 @@ char rx_buff[RX_BUFF_SIZE];
 
 struct cbuff_s{
     char * buff;
-    uint8_t head;
-    uint8_t tail;
-    uint8_t size;
+    uint16_t head;
+    uint16_t tail;
+    uint16_t size;
     bool full;
 };
 
 struct cbuff_s cbuff_tx;
 struct cbuff_s cbuff_rx;
 
-static void buff_init(struct cbuff_s * cbuf, char * buff, uint8_t size){
+static void buff_init(struct cbuff_s * cbuf, char * buff, uint16_t size){
     cbuf->buff = buff;
     cbuf->head = 0;
     cbuf->tail = 0;
@@ -55,8 +56,8 @@ static char buf_get(struct cbuff_s * cbuf){
     return data;
 }
 
-static char buf_view(struct cbuff_s * cbuf, uint8_t offset){
-    uint8_t i = cbuf->tail + offset;
+static char buf_view(struct cbuff_s * cbuf, uint16_t offset){
+    uint16_t i = cbuf->tail + offset;
     return cbuf->buff[i % cbuf->size];
 }
 
@@ -66,8 +67,8 @@ static void buf_clear(struct cbuff_s * cbuf){
     cbuf->full = false;
 }
 
-static void buf_mv_tail_fwd(struct cbuff_s * cbuf, uint8_t offset){
-    uint8_t i = cbuf->tail + offset;
+static void buf_mv_tail_fwd(struct cbuff_s * cbuf, uint16_t offset){
+    uint16_t i = cbuf->tail + offset;
     cbuf->tail = i % cbuf->size; 
     cbuf->full = false;
 }
@@ -187,7 +188,13 @@ enum usart_cmds{LED=0x13,
                 UPDATE_DURATION = 0x17,
                 UPDATE_BEAT = 0x18, 
 };
+
+uint32_t temp_32;
+uint16_t temp_16;
+uint8_t len;
 void usart_process_cmd(void){
+    
+    
     if(!buf_empty(&cbuff_rx)){
         switch(buf_view(&cbuff_rx, 0)){
             case LED:
@@ -195,8 +202,57 @@ void usart_process_cmd(void){
                 buf_mv_tail_fwd(&cbuff_rx, 4 + buf_view(&cbuff_rx, 1));
                 state = await_str;
                 break;
+            case SOUND_ON:
+                turn_on_speaker();
+                buf_mv_tail_fwd(&cbuff_rx, 4 + buf_view(&cbuff_rx, 1));
+                state = await_str;
+                break;
+            case SOUND_OFF:
+                turn_off_speaker();
+                buf_mv_tail_fwd(&cbuff_rx, 4 + buf_view(&cbuff_rx, 1));
+                state = await_str;
+                break;
+            case UPDATE_BEAT:            
+                temp_32 = 0;
+                len = buf_view(&cbuff_rx, 1);
+                for(uint16_t i=0; i<len;i++){
+                    temp_32 |= ((uint32_t)buf_view(&cbuff_rx, 2 + i) << (8 * i));
+                }
+                update_tempo(temp_32);
+                buf_mv_tail_fwd(&cbuff_rx, 4 + len);
+                state = await_str;
+                break;
+                
+            case UPDATE_NOTES:  
+                                
+                len = buf_view(&cbuff_rx, 1)/2;
+                for(uint16_t i=0; i<len;i++){
+                    temp_16 = 0; 
+                    temp_16 |= (uint16_t)buf_view(&cbuff_rx, 2 + (i*2));
+                    temp_16 |= (uint16_t)buf_view(&cbuff_rx, 2 + (i*2) + 1) << 8;
+                    update_note(temp_16, i);
+                }
+                update_num_notes(len);
+                buf_mv_tail_fwd(&cbuff_rx, 4 + buf_view(&cbuff_rx, 1));
+                state = await_str;
+                break;
+                
+            case UPDATE_DURATION:
+                len = buf_view(&cbuff_rx, 1)/2;
+                for(uint16_t i=0; i<len;i++){
+                    temp_16 = 0; 
+                    temp_16 |= (uint16_t)buf_view(&cbuff_rx, 2 + (i*2));
+                    temp_16 |= (uint16_t)buf_view(&cbuff_rx, 2 + (i*2) + 1) << 8;
+                    update_duration(temp_16, i);
+                }
+                update_num_notes(len);
+                buf_mv_tail_fwd(&cbuff_rx, 4 + buf_view(&cbuff_rx, 1));
+                state = await_str;
+                break;
+                
             default:
                 break;
+        
         }
     }
     
